@@ -1,0 +1,244 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Taste Test</title>
+    <link rel="icon" href="../Resource/icon.png" type="image/png">
+    <link href="https://fonts.googleapis.com/css2?family=Petit+Formal+Script&family=Tangerine:wght@400;700&display=swap"
+          rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Petit+Formal+Script&family=Tagesschrift&family=Tangerine:wght@400;700&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Petit+Formal+Script&family=Playfair+Display:ital,wght@0,400..900;1,400..900&family=Tagesschrift&family=Tangerine:wght@400;700&display=swap" rel="stylesheet">
+    <style>
+        body {
+            margin: 0;
+            padding: 0;
+            height: 100%;
+            width: 100%;
+            font-family: "Tangerine", cursive;
+            background-color: #111;
+            color: #fff;
+        }
+
+        #questionnaire {
+            display: flex;
+            justify-content: center;
+            width: 100vw;
+            min-width: 100%;
+            padding: 30px;
+            box-sizing: border-box;
+        }
+
+        #questionnaire-inner {
+            width: 100%;
+            max-width: 1200px;
+            min-width: 0;
+            align-items: center;
+            text-align: center;
+        }
+
+        .movie-options {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 24px;
+            width: 100%;
+            margin-top: 20px;
+            padding: 0 10px;
+            box-sizing: border-box;
+            margin: 20px auto;
+            max-width: 800px;
+        }
+
+        .movie-container img {
+            width: 100%;
+            height: auto;
+            aspect-ratio: 2 / 3; /* maintains poster shape */
+            max-width: 240px;
+            object-fit: cover;
+            cursor: pointer;
+            border-radius: 30px;
+            transition: transform 0.3s ease, box-shadow 0.3s ease;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.5);
+        }
+
+
+        .movie-container img:hover {
+            transform: scale(1.05);
+            box-shadow: 0 6px 20px rgba(0, 0, 0, 0.7);
+        }
+
+        .movie-name {
+            font-family: "Petit Formal Script", cursive;
+            margin-top: 10px;
+            font-size: 20px;
+            color: #e0e0e0;
+            text-align: center;
+        }
+
+        .reason-btn, #skip-button {
+            font-family: "Petit Formal Script", cursive;
+            padding: 12px 24px;
+            font-size: 20px;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            margin: 10px 0;
+        }
+
+        .reason-btn {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 15px;
+            width: 280px;
+            text-align: center;
+            background-color: #007bff;
+            color: white;
+        }
+
+        .reason-btn:hover {
+            background-color: #0056b3;
+        }
+
+        #skip-button {
+            margin-top: 30px;
+            background-color: #ff4444;
+            font-size: 45px;
+        }
+
+        #skip-button:hover {
+            background-color: #cc0000;
+        }
+
+        #selectedMoviePoster {
+            width: 200px;
+            height: auto;
+            border-radius: 10px;
+            margin-bottom: 10px;
+        }
+
+        #step2 {
+            display: none;
+            flex-direction: column;
+            align-items: center;
+            font-family: "Petit Formal Script", cursive;
+            font-size: 20px;
+        }
+
+        h2 {
+            font-size: 48px;
+            margin-bottom: 20px;
+        }
+    </style>
+</head>
+<body>
+<div id="questionnaire">
+    <div id="questionnaire-inner">
+        <!-- Step 1 -->
+        <div id="step1">
+            <h2>Select a Movie You Like</h2>
+            <div class="movie-options" id="movieOptions"></div>
+        </div>
+
+        <!-- Step 2 -->
+        <div id="step2">
+            <h2>Why do you like this movie?</h2>
+            <img id="selectedMoviePoster" src="" alt="Selected Movie Poster">
+            <p id="selectedMovieDisplay"></p>
+            <div>
+                <button class="reason-btn" onclick="submitReason('It is popular')">It is popular</button>
+                <button class="reason-btn" onclick="submitReason('Love the story')">Love the story</button>
+                <button class="reason-btn" onclick="submitReason('Like the actors, director or the genre')">Like the
+                    actors, director or the genre
+                </button>
+            </div>
+            <button class="reason-btn" style="background-color: #555;" onclick="goBack()">&larr; Back</button>
+        </div>
+
+        <!-- Close Button -->
+        <button id="skip-button" onclick="skipQuestionnaire()">Close</button>
+    </div>
+</div>
+<div id="recommenderResults" style="margin: 40px auto; max-width: 800px; font-size: 30px; font-family: 'Tagesschrift', system-u; color: white;"></div>
+
+<script>
+    let selectedMovie = null;
+
+    window.onload = () => {
+        document.getElementById("questionnaire").style.display = "flex";
+        loadMovies();
+    };
+
+    async function loadMovies() {
+        try {
+            const response = await fetch("http://localhost:5000/api/questionnaire-movies");
+            if (!response.ok) throw new Error("movies.json not found");
+            const movies = await response.json();
+            const container = document.getElementById("movieOptions");
+            container.innerHTML = "";
+            movies.forEach(movie => {
+                const card = document.createElement("div");
+                card.classList.add("movie-container");
+
+                const img = document.createElement("img");
+                img.src = movie.poster;
+                img.alt = movie.name;
+                img.onclick = () => selectMovie(movie.name, movie.poster);
+
+                const name = document.createElement("div");
+                name.classList.add("movie-name");
+                name.textContent = movie.name;
+
+                card.appendChild(img);
+                card.appendChild(name);
+                container.appendChild(card);
+            });
+        } catch (err) {
+            console.error("Error loading movies:", err);
+        }
+    }
+
+    function selectMovie(name, poster) {
+        selectedMovie = name;
+        document.getElementById("selectedMoviePoster").src = poster;
+        document.getElementById("selectedMovieDisplay").textContent = `You selected: ${name}`;
+        document.getElementById("step1").style.display = "none";
+        document.getElementById("step2").style.display = "flex";
+    }
+
+    function submitReason(reason) {
+        if (!selectedMovie) return alert("No movie selected.");
+
+        fetch("http://localhost:5000/recommend", {
+            method: "POST",
+            headers: {"Content-Type": "application/json"},
+            body: JSON.stringify({movie: selectedMovie, reason})
+        })
+            .then(res => res.json())
+            .then(data => {
+                const recommendations = data.recommendations || [];
+                const resultHTML = `
+                <p>🎬 Recommendations based on <strong>${selectedMovie}</strong> (<em>${reason}</em>):</p>
+                <ul>${recommendations.map(title => `<li>${title}</li>`).join('')}</ul>
+            `;
+                const resultDiv = document.getElementById("recommenderResults");
+                if (resultDiv) resultDiv.innerHTML = resultHTML;
+                else console.warn("recommenderResults element not found");
+                document.getElementById("questionnaire").style.display = "none";
+            })
+            .catch(err => {
+                console.error("Recommendation fetch error:", err);
+                alert("Failed to get recommendations.");
+            });
+    }
+
+    function goBack() {
+        document.getElementById("step2").style.display = "none";
+        document.getElementById("step1").style.display = "flex";
+    }
+
+    function skipQuestionnaire() {
+        document.getElementById("questionnaire").style.display = "none";
+    }
+</script>
+</body>
+</html>

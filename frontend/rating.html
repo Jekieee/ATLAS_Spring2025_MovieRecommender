@@ -1,0 +1,57 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Centered Star Rating</title>
+  <style>
+    /* Make body fill the screen and remove default margins */
+    html, body {
+      height: 100%;
+      margin: 0;
+    }
+
+    /* Flex container to center its content */
+    .center-container {
+      display: flex;
+      justify-content: center;   /* horizontal centering */
+      align-items: center;       /* vertical centering */
+      height: 100%;
+    }
+
+    /* Your star-rating styles */
+    .star-rating {
+      direction: rtl;
+      font-size: 2rem;
+      unicode-bidi: bidi-override;
+      display: inline-block;     /* shrink to content width */
+    }
+    .star-rating input {
+      display: none;
+    }
+    .star-rating label {
+      color: #ccc;
+      cursor: pointer;
+      margin: 0 0.1em;
+    }
+    .star-rating input:checked ~ label,
+    .star-rating label:hover,
+    .star-rating label:hover ~ label {
+      color: gold;
+    }
+  </style>
+</head>
+<body>
+  <div class="center-container">
+    <form action="/submit_rating" method="POST">
+      <div class="star-rating">
+        <input type="radio" id="star5" name="rating" value="5"><label for="star5">★</label>
+        <input type="radio" id="star4" name="rating" value="4"><label for="star4">★</label>
+        <input type="radio" id="star3" name="rating" value="3"><label for="star3">★</label>
+        <input type="radio" id="star2" name="rating" value="2"><label for="star2">★</label>
+        <input type="radio" id="star1" name="rating" value="1" required><label for="star1">★</label>
+      </div>
+      <button type="submit" style="display: block; margin: 1em auto;">Submit</button>
+    </form>
+  </div>
+</body>
+</html>

@@ -1,0 +1,335 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="icon" href="../Resource/icon.png" type="image/png">
+    <link href="https://fonts.googleapis.com/css2?family=Petit+Formal+Script&family=Playfair+Display:ital,wght@0,400..900;1,400..900&family=Tagesschrift&family=Tangerine:wght@400;700&display=swap" rel="stylesheet">
+    <title>Movie Rating</title>
+    <style>
+        body {
+            font-family: "Tagesschrift", system-ui;
+            margin: 0;
+            padding: 0;
+            /*background-color: #601818;*/
+            background-image: linear-gradient(#0e0e0e,#601818);
+            color: #d1d1d1;
+        }
+
+        h1 {
+            text-align: center;
+            font-size: 2rem;
+            margin-top: 30px;
+            color: #dedede;
+        }
+
+        p{
+            text-align: center;
+            font-size: 18px;
+        }
+
+        /* Movie List */
+        #movie-list {
+            margin: 20px;
+            display: flex;
+            flex-wrap: wrap;
+            justify-content: center;
+            gap: 15px;
+        }
+
+        .movie-item {
+            transition: transform 0.3s ease-in-out;
+            cursor: pointer;
+        }
+
+        .movie-item:hover {
+            transform: scale(1.05);
+        }
+
+        /* Movie Posters */
+        .movie-poster {
+            width: 200px;
+            height: 300px;
+            border-radius: 10px;
+            transition: transform 0.3s ease-in-out;
+            border: 5px solid #d8d8d8;
+        }
+
+        .movie-poster:hover {
+            transform: scale(1.1);
+        }
+
+        /* Modal Styles */
+        .modal {
+            display: none;
+            position: fixed;
+            z-index: 1;
+            left: 0;
+            top: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0, 0, 0, 0.5);
+            padding-top: 50px;
+            transition: opacity 0.3s ease-in-out;
+            justify-content: center;
+            align-items: center;
+        }
+
+        .modal-content {
+            color: #4c4c4c;
+            background-color: #c7c7c7;
+            margin: 5% auto;
+            padding: 50px;
+            border-radius: 20px;
+            width: 80%;
+            max-width: 600px;
+            box-shadow: 0 0 15px rgba(0, 0, 0, 0.2);
+            text-align: center;
+            position: relative;
+        }
+
+        .close {
+            color: #747474;
+            font-size: 30px;
+            font-weight: bold;
+            position: absolute;
+            top: 10px;
+            right: 15px;
+            cursor: pointer;
+        }
+
+        .close:hover,
+        .close:focus {
+            color: black;
+            cursor: pointer;
+        }
+
+        /* Rating Form */
+        .rating-form {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            margin-top: 20px;
+        }
+
+        .star-rating {
+            display: inline-block;
+            direction: rtl;
+            font-size: 50px;
+            color: #a2a1a1;
+            cursor: pointer;
+        }
+
+        .star-rating input {
+            display: none;
+        }
+
+        .star-rating label {
+            margin: 0 5px;
+        }
+
+        .star-rating input:checked ~ label,
+        .star-rating label:hover,
+        .star-rating label:hover ~ label {
+            color: #f39c12;
+            /*color: #b44a8f;*/
+        }
+
+        button {
+            background-color: #4CAF50;
+            /*background-color: #4b1137;*/
+            color: white;
+            padding: 10px 20px;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            transition: background-color 0.3s ease;
+            font-size: 20px;
+        }
+
+        button:hover {
+            background-color: #45a049;
+        }
+
+        /* Responsive Design */
+        @media (max-width: 768px) {
+            .movie-poster {
+                width: 150px;
+                height: 225px;
+            }
+
+            .modal-content {
+                width: 90%;
+            }
+        }
+    </style>
+</head>
+<body>
+
+<!--<h1>Movies You Might Like</h1>-->
+
+<h1>Rate Your Favorite Movie!</h1>
+    <p>Rate at least five movies to see your personalized recommendations!</p>
+
+<!-- Movie list posters will be displayed here -->
+<div id="movie-list"></div>
+
+<!-- Modal for movie rating -->
+<div id="ratingModal" class="modal">
+    <div class="modal-content">
+        <span class="close">&times;</span>
+        <img id="movie-poster" class="movie-poster" alt="Movie Poster">
+        <h2 id="movie-title">Movie Title</h2>
+        <p id="movie-year">Release Year: </p>
+
+        <!-- Rating Form -->
+        <div class="rating-form" id="rating-form">
+            <form action="/submit_rating" method="POST">
+                <div class="star-rating">
+                    <input type="radio" id="star5" name="rating" value="5"><label for="star5">★</label>
+                    <input type="radio" id="star4" name="rating" value="4"><label for="star4">★</label>
+                    <input type="radio" id="star3" name="rating" value="3"><label for="star3">★</label>
+                    <input type="radio" id="star2" name="rating" value="2"><label for="star2">★</label>
+                    <input type="radio" id="star1" name="rating" value="1" required><label for="star1">★</label>
+                </div>
+                <button type="submit" style="display: block; margin: 1em auto;" onclick="submitRating(event)">Submit</button>
+            </form>
+        </div>
+    </div>
+</div>
+
+<script>
+    let currentMovieId = null; // To store the currently selected movie IMDb ID for rating
+
+    // Wait for the DOM to be fully loaded before executing the script
+    document.addEventListener("DOMContentLoaded", function () {
+        console.log("Fetching movies from Flask...");
+
+        // Fetch the list of movies from the Flask backend
+        fetch('http://localhost:5000/fetch_movies')
+            .then(response => {
+                console.log('Response Status:', response.status);  // Log status code
+                return response.json();  // Parse JSON if status is 200 OK
+            })
+            .then(movies => {
+                console.log('Movies Data:', movies);  // Log movie data to ensure it’s coming correctly
+                if (movies && movies.length > 0) {
+                    const movieListDiv = document.getElementById('movie-list');
+                    console.log("Populating movie list...");
+
+                    // Loop through the movies and create the movie posters
+                    movies.forEach(movie => {
+                        // Call fetchMovieData to get poster and details for each movie
+                        fetchMovieData(movie.imdb_id, movie.title, movieListDiv);
+                    });
+                } else {
+                    console.error('No movies found.');
+                }
+            })
+            .catch(error => {
+                console.error('Error fetching movie list:', error);  // Log the error
+            });
+    });
+
+    // Function to fetch movie data (poster and details) from OMDb API
+    function fetchMovieData(imdbId, title, movieListDiv) {
+        const apiKey = 'b01e7ab6';  // Replace with your OMDb API key
+        const url = `http://www.omdbapi.com/?i=${imdbId}&apikey=${apiKey}&plot=short&r=json`;
+
+        fetch(url)
+            .then(response => response.json())
+            .then(data => {
+                if (data.Response === "True") {
+                    // Create a div for the movie poster and details
+                    const movieItemDiv = document.createElement('div');
+                    movieItemDiv.classList.add('movie-item');
+
+                    // Create the image element for the movie poster
+                    const img = document.createElement('img');
+                    img.classList.add('movie-poster');
+                    img.src = data.Poster;  // Set the actual movie poster
+                    img.alt = title;
+
+                    // Add movie title and year
+                    const movieTitle = document.createElement('h3');
+                    movieTitle.textContent = data.Title;
+                    movieItemDiv.appendChild(movieTitle);
+
+                    const movieYear = document.createElement('p');
+                    movieYear.textContent = `Release Year: ${data.Year}`;
+                    movieItemDiv.appendChild(movieYear);
+
+                    // Set the click handler to show the modal
+                    img.onclick = () => showRatingForm(imdbId, title, data.Poster, data.Year);
+
+                    // Append the image and details to the movie item div and then to the movie list div
+                    movieItemDiv.appendChild(img);
+                    movieListDiv.appendChild(movieItemDiv);
+                } else {
+                    console.error(`Movie not found for IMDb ID: ${imdbId}`);
+                }
+            })
+            .catch(error => {
+                console.error('Error fetching movie data:', error);
+            });
+    }
+
+    // Function to display the rating form in a modal when a movie poster is clicked
+    function showRatingForm(imdbId, title, poster, year) {
+        currentMovieId = imdbId;  // Store the current IMDb ID for later use
+
+        // Set the selected movie details to display
+        document.getElementById('movie-poster').src = poster;
+        document.getElementById('movie-title').textContent = title;
+        document.getElementById('movie-year').textContent = `Release Year: ${year}`;
+
+        // Show the modal
+        const modal = document.getElementById('ratingModal');
+        modal.style.display = 'block';
+    }
+
+    // Function to close the modal when the user clicks on the close button (×)
+    const closeModal = document.getElementsByClassName("close")[0];
+    closeModal.onclick = function () {
+        const modal = document.getElementById('ratingModal');
+        modal.style.display = "none";
+    }
+
+    // Close the modal if the user clicks anywhere outside of the modal
+    window.onclick = function (event) {
+        const modal = document.getElementById('ratingModal');
+        if (event.target == modal) {
+            modal.style.display = "none";
+        }
+    }
+
+    function submitRating(event) {
+        event.preventDefault();
+
+        const rating = document.querySelector('input[name="rating"]:checked').value; // Get the selected rating value
+        alert(`You rated the movie with IMDb ID ${currentMovieId}: ${rating}`);
+
+        fetch('http://localhost:5000/submit_rating', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+                imdbId: currentMovieId,
+                rating: rating
+            })
+        })
+        .then(response => response.json())
+        .then(data => {
+            console.log('Rating submitted successfully:', data);
+            alert('Thank you for your rating!');
+        })
+        .catch(error => {
+            console.error('Error submitting rating:', error);
+            alert('There was an error submitting your rating.');
+        });
+    }
+</script>
+
+</body>
+</html>

@@ -1,0 +1,263 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Find Cinemas (IMAX & AMC) Near You</title>
+    <link rel="icon" type="image/png" href="../Resource/icon.png">
+    <link rel="stylesheet" href="https://unpkg.com/leaflet/dist/leaflet.css"/>
+    <script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
+    <style>
+        body {
+            margin: 0;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        }
+
+        #map {
+            height: 500px;
+            width: 100%;
+            margin-bottom: 10px;
+        }
+
+        #controls {
+            margin-bottom: 10px;
+        }
+    </style>
+</head>
+<body>
+<h2>Find IMAX & AMC Cinemas Near You</h2>
+<div id="controls">
+    <label for="rangeInput">Search Range (meters):</label>
+    <input type="number" id="rangeInput" value="20000" min="1000" step="1000">
+    <button onclick="searchWithNewRange()">Search</button>
+</div>
+<div id="map"></div>
+<!-- Today's Showtimes Section -->
+<div id="todayShowtimes" style="padding: 20px;">
+    <h2>🎥 Today's Movies at Nearby Cinemas</h2>
+    <div id="todayMoviesContainer">Loading nearby movie data...</div>
+</div>
+<div id="showtimeModal"
+     style="display: none; position: fixed; top: 0; left: 0; width: 100vw; height: 100vh;
+            background-color: rgba(0,0,0,0.85); z-index: 99999; overflow-y: auto; color: white; padding: 40px;">
+    <div style="max-width: 800px; margin: auto; background-color: #111; padding: 20px; border-radius: 12px;">
+        <span class="close" onclick="closeModal()" style="float:right; font-size: 28px; cursor: pointer;">&times;</span>
+        <h2 id="modalTitle">Showtimes</h2>
+
+        <div id="showtimeTabs" style="margin-bottom: 12px; display: flex; gap: 6px;"></div>
+        <div id="showtimeTabContent"></div>
+
+        <button onclick="closeModal()"
+                style="margin-top: 20px; padding: 10px 20px; background-color: #ff4444;
+                   color: white; border: none; border-radius: 6px; cursor: pointer;">
+            Close
+        </button>
+
+    </div>
+</div>
+<script>
+    const map = L.map('map').setView([0, 0], 2);
+    const markersLayer = L.layerGroup().addTo(map);
+
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+        attribution: '&copy; OpenStreetMap contributors'
+    }).addTo(map);
+
+    navigator.geolocation.getCurrentPosition(pos => {
+        userLat = pos.coords.latitude;
+        userLng = pos.coords.longitude;
+        map.setView([userLat, userLng], 14);
+        L.marker([userLat, userLng]).addTo(map).bindPopup("📍 You are here!").openPopup();
+    }, err => {
+        console.error("Geolocation error:", err.message);
+        alert("Location access denied. Enable it for full functionality.");
+    });
+
+    function searchWithNewRange() {
+        const range = document.getElementById("rangeInput").value;
+        if (range < 1000) return alert("⚠️ Please enter at least 1000 meters.");
+
+        fetchCinemas(userLat, userLng, range);
+    }
+
+
+    function fetchCinemas(lat, lng, radius) {
+        markersLayer.clearLayers();
+        const query = `[out:json];
+(
+  node["amenity"="cinema"](around:${radius},${lat},${lng});
+  node["name"~"AMC",i](around:${radius},${lat},${lng});
+  node["brand"~"AMC",i](around:${radius},${lat},${lng});
+  node["operator"~"AMC",i](around:${radius},${lat},${lng});
+  way["amenity"="cinema"](around:${radius},${lat},${lng});
+  relation["amenity"="cinema"](around:${radius},${lat},${lng});
+);
+out center;`;
+
+        const url = "https://overpass-api.de/api/interpreter?data=" + encodeURIComponent(query);
+
+        return fetch(url)
+            .then(response => {
+                const contentType = response.headers.get("content-type");
+                if (!contentType || !contentType.includes("application/json")) {
+                    throw new Error("Overpass returned non-JSON");
+                }
+                return response.json();
+            })
+            .then(data => {
+                console.log("🎯 Overpass raw response:", data);
+                if (!data.elements || data.elements.length === 0) {
+                    alert("😔 No cinemas found. Try increasing the range.");
+                    return false;
+                }
+
+                data.elements.forEach(cinema => {
+                    const lat = cinema.lat ?? (cinema.center && cinema.center.lat);
+                    const lon = cinema.lon ?? (cinema.center && cinema.center.lon);
+                    if (!lat || !lon) return;
+
+                    const name = cinema.tags.name || "🎬 Unnamed Cinema";
+                    console.log("🧾 Detected cinema:", name);
+                    const markerColor = name.includes("IMAX") ? "red" : name.includes("AMC") ? "green" : "green";
+                    const icon = L.icon({
+                        iconUrl: `https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-${markerColor}.png`,
+                        iconSize: [25, 41],
+                        iconAnchor: [12, 41],
+                        popupAnchor: [1, -34]
+                    });
+                    const popupContent = `
+  <b>${name}</b><br>
+  📍 Nearby Cinema<br>
+  <button onclick="fetchShowtimesByCinema('${name.replace(/'/g, "\\'")}')">🎬 View Showtimes</button>
+`;
+
+                    L.marker([lat, lon], {icon}).addTo(markersLayer).bindPopup(popupContent);
+
+                });
+
+                return true;
+            })
+            .catch(err => {
+                console.error("Cinema fetch error:", err);
+                return false;
+            });
+    }
+
+    function fetchShowtimesByCinema(cinemaName) {
+        const location = "United States";
+
+        fetch(`http://localhost:5000/showtimes?q=${encodeURIComponent(cinemaName)}&location=${encodeURIComponent(location)}`)
+            .then(res => res.json())
+            .then(data => {
+                console.log("🎬 Raw showtime data:", data);
+
+                const tabsContainer = document.getElementById("showtimeTabs");
+                const tabContentContainer = document.getElementById("showtimeTabContent");
+
+                // 📌 Add-to-homepage button
+                const pinButton = document.createElement("button");
+                pinButton.innerText = "📌 Add to Home Page";
+                pinButton.style.marginTop = "20px";
+                pinButton.style.padding = "10px 20px";
+                pinButton.style.fontSize = "16px";
+                pinButton.style.backgroundColor = "#28a745";
+                pinButton.style.color = "white";
+                pinButton.style.border = "none";
+                pinButton.style.borderRadius = "8px";
+                pinButton.style.cursor = "pointer";
+
+                tabsContainer.innerHTML = "";
+                tabContentContainer.innerHTML = "";
+
+                const trimmedData = data.slice(0, 3); // Show only 3 days
+
+                tabContentContainer.appendChild(pinButton);
+
+                trimmedData.forEach((entry, idx) => {
+                    const dayKey = `day-${idx}`;
+
+                    const tabButton = document.createElement("button");
+                    tabButton.textContent = `${entry.day} (${entry.date})`;
+                    tabButton.style.padding = "6px 12px";
+                    tabButton.style.border = "none";
+                    tabButton.style.cursor = "pointer";
+                    tabButton.style.backgroundColor = idx === 0 ? "#FFD700" : "#333";
+                    tabButton.style.color = idx === 0 ? "#000" : "#fff";
+                    tabButton.onclick = () => switchTab(dayKey, tabsContainer);
+                    tabsContainer.appendChild(tabButton);
+
+                    let dayHTML = "";
+                    if (Array.isArray(entry.movies)) {
+                        entry.movies.forEach(movie => {
+                            dayHTML += `
+                            <div style="margin-bottom: 16px;">
+                                <div style="font-weight: bold; font-size: 18px; color: #00CED1;">🎬 ${movie.name}</div>
+                        `;
+                            if (Array.isArray(movie.showing)) {
+                                movie.showing.forEach(s => {
+                                    const times = (s.time || []).join(", ");
+                                    dayHTML += `
+                                    <div style="margin-left: 20px;">
+                                        🍿 <em style="color: #ccc;">${s.type}:</em>
+                                        <span style="color: #eee;">${times}</span>
+                                    </div>
+                                `;
+                                });
+                            }
+                            dayHTML += `</div>`;
+                        });
+                    }
+
+                    const dayDiv = document.createElement("div");
+                    dayDiv.id = dayKey;
+                    dayDiv.dataset.label = `${entry.day} (${entry.date})`;
+                    dayDiv.style.display = idx === 0 ? "block" : "none";
+                    dayDiv.innerHTML = dayHTML;
+                    tabContentContainer.appendChild(dayDiv);
+                });
+
+                document.getElementById("modalTitle").innerText = `Showtimes for ${cinemaName}`;
+                document.getElementById("showtimeModal").style.display = "block";
+
+                pinButton.onclick = () => {
+                    const todayContainer = document.getElementById("todayMoviesContainer");
+                    if (todayContainer.innerText.includes("Loading")) todayContainer.innerHTML = "";
+
+
+                    // Create a nice chunk with this cinema’s showtimes
+                    const cinemaChunk = document.createElement("div");
+                    cinemaChunk.style.marginBottom = "20px";
+                    cinemaChunk.style.padding = "10px";
+                    cinemaChunk.style.background = "#1e1e1e";
+                    cinemaChunk.style.borderRadius = "8px";
+                    cinemaChunk.innerHTML = `
+        <h3 style="color: #FFD700;">🎬 ${cinemaName}</h3>
+        ${tabContentContainer.innerHTML}
+        <hr style="margin-top: 10px; border: 1px solid #444;">
+    `;
+                    if ([...todayContainer.children].some(div => div.innerHTML.includes(cinemaName))) {
+                        alert("This cinema is already pinned to the homepage!");
+                        return;
+                    }
+
+
+                    todayContainer.appendChild(cinemaChunk);
+                    document.getElementById("showtimeModal").style.display = "none";
+                    tabsContainer.innerHTML = "";
+                    tabContentContainer.innerHTML = "";
+
+                };
+
+            })
+            .catch(err => {
+                console.error("❌ Error fetching showtimes:", err);
+                alert("Failed to load showtimes.");
+            });
+    }
+
+    function closeModal() {
+        document.getElementById("showtimeModal").style.display = "none";
+    }
+</script>
+</body>
+</html>
