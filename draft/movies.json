@@ -1,0 +1,26 @@
+[
+  {
+    "name": "Minions",
+    "poster": "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcShOu6ZBmFJCXFOjd8zB7oxluOMsufMP4RsCvXFLioAhm-DMo-q"
+  },
+  {
+    "name": "Interstellar",
+    "poster": "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcTkM8CdEzi1ETGZgwkTgPgR9OOirqY2ljIMg8a-Vvx0stnMCHzO"
+  },
+  {
+    "name": "Deadpool",
+    "poster": "https://upload.wikimedia.org/wikipedia/en/2/23/Deadpool_%282016_poster%29.png"
+  },
+  {
+    "name": "Guardians of the Galaxy",
+    "poster": "https://encrypted-tbn3.gstatic.com/images?q=tbn:ANd9GcT-wzuFCEM5Btl0YnRPt8GysTVsJ42kYG4E8zYaZ8nGJZNB4I7f"
+  },
+  {
+    "name": "Mad Max: Fury Road",
+    "poster": "https://upload.wikimedia.org/wikipedia/en/6/6e/Mad_Max_Fury_Road.jpg"
+  },
+  {
+    "name": "Jurassic World",
+    "poster": "https://upload.wikimedia.org/wikipedia/en/6/6e/Jurassic_World_poster.jpg"
+  }
+]
