@@ -19,7 +19,7 @@ There are three features in this web application:
  - [In_Progress] Explore Movies: A page that user can rating on different movies, the collaborative filtering can make recommendation based on user's ratings.
  - [Complete] Nearby Cinema: Fetch nearby cinema.
 
-You may find more information about the project in the project report.
+You may find more information about the project in ATLAS_ML/AI_Spring2025_MovieRecommenderSystem file.
 
 ## Warning
 Some tasks are not complete
